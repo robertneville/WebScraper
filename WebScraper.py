@@ -43,12 +43,27 @@ def enter_login_details (driver, webscraper):
     # driver.quit()
 
 def test(my_web_scraper):
-    # print("Your username is: " + my_web_scraper.username + "\n")
-    print("Your password is: " + my_web_scraper.password + "\n")
-    #create driver for Chrome
-    driver = webdriver.Chrome()
-    open_webpage(driver)
-    enter_login_details(driver, my_web_scraper)
+    # Choose wich browser to use
+    action = input('Do you want to use [C]hrome or [F]irefox?').upper()
+    if action not in "CF" or len(action)!=1:
+        print("You didn't pick [C]hrome or [F]irefox. Give it another go")
+        test(my_web_scraper)
+    # create driver for Chrome
+    if action == 'C':
+        driver = webdriver.Chrome()
+        # driver chosen, open the webpage.
+        open_webpage(driver)
+        # enterlogin details and login
+        enter_login_details(driver, my_web_scraper)
+    # create driver for Firefox
+    elif action == 'F':
+        driver = webdriver.Firefox()
+        # driver chosen, open the webpage.
+        open_webpage(driver)
+        # enterlogin details and login
+        enter_login_details(driver, my_web_scraper)
+
+
 
 
 

@@ -20,7 +20,7 @@ class WebScraper:
     """This class carries the username and pw of a facebook account. Default is user and pw"""
 
     def __init__(self):
-        self.username = " @gmail.com"
+        self.username = "@gmail.com"
         self.password = ""
 
     def set_password(self, password):
@@ -62,7 +62,7 @@ def enter_login_details(driver, webscraper):
     login_button.click()
 
 
-def search_town(driver, term, type):
+def search_town(driver, term, page_type):
     """Search for a town or city. At this stage, results are not filtered."""
     print("Searching for " + term)
     try:
@@ -78,7 +78,7 @@ def search_town(driver, term, type):
         # enter the search term and click the button and pause
         time.sleep(5)
         # adding New Zealand to search term gives results from all over New Zealand. Will not use it here.
-        if type == "Pages":
+        if page_type == "Pages":
             search_box.send_keys(term)
             search_button.click()
             print("Found results for " + term + ".")
@@ -92,11 +92,11 @@ def search_town(driver, term, type):
         sys.exit(1)
 
 
-def scroll_bottom_results(driver, type):
+def scroll_bottom_results(driver, page_type):
     """this scrolls to bottom of results to show all of the hidden elements on a page."""
     time.sleep(5)
     print("Scrolling...")
-    if type == "Pages":
+    if page_type == "Pages":
         # go to container that has reults in it. Count the divs inside.
         no_of_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
                                                         "div[1]/div[2]/div[1]/div[1]/div[1]/div"))
@@ -123,7 +123,7 @@ def scroll_bottom_results(driver, type):
             items_list.pop()
         print("finished scrolling")
         # get the URLs
-        parse_items_pages(items_list, type)
+        parse_items_pages(items_list, page_type)
     else:
         time.sleep(2)
         # clicking on open groups radio button.
@@ -160,12 +160,12 @@ def scroll_bottom_results(driver, type):
             items_list.pop()
         print("finished scrolling. The length of items_list is " + str(len(items_list)))
         # get the URLs
-        parse_items_groups(items_list, type)
+        parse_items_groups(items_list, page_type)
 
 
-def parse_items_pages(items_list, type):
+def parse_items_pages(items_list, page_type):
     """Parses the list for DIVs we can use"""
-    print("Parsing Items in the " + type + " list...")
+    print("Parsing Items in the " + page_type + " list...")
     my_list = []
     time.sleep(2)
     # go through the divs and add individual divs inside to a list
@@ -194,13 +194,13 @@ def parse_items_pages(items_list, type):
             for j in range(len(else_list)):
                 if else_list[j].text.find("New Zealand") >= 0:
                     my_list.append(else_list[j])
-    print("Parsing the " + type + " list is finished.")
-    get_hrefs(my_list, type)
+    print("Parsing the " + page_type + " list is finished.")
+    get_hrefs(my_list, page_type)
 
 
-def parse_items_groups(items_list, type):
+def parse_items_groups(items_list, page_type):
     """Parses the list for DIVs we can use"""
-    print("Parsing Items in the " + type + " list...")
+    print("Parsing Items in the " + page_type + " list...")
     my_list = []
     time.sleep(2)
     # go through the divs and add individual divs inside to a list
@@ -222,8 +222,8 @@ def parse_items_groups(items_list, type):
                                                              "/div[2]/div[1]/div[1]/div[2]/div[1]/div[1]/div[1]" +
                                                              "/div[" + str(i) + "]/div/div")
             my_list.extend(else_list)
-    print("Parsing the " + type + " list is finished.")
-    get_hrefs(my_list, type)
+    print("Parsing the " + page_type + " list is finished.")
+    get_hrefs(my_list, page_type)
 
 
 def get_hrefs(my_list, name):
@@ -266,12 +266,12 @@ def open_links(driver, my_list, page_type):
             pass
 
 
-def scroll_bottom_again(driver, url, type):
+def scroll_bottom_again(driver, url, page_type):
     """Second time we are scrolling down. We are on an individual Pages or Groups Page.
        Scrolling down to get all of the posts and comments. May be quite large"""
     print("Scrolling " + url + "...")
     # Scrolling down whole page
-    if type == "Pages":
+    if page_type == "Pages":
         xpath = "/html/body/div[1]/div[3]/div[1]/div/div/div[2]/div[2]/div/div[2]/div[2]/div/div/div[2]/div/div"
         list_of_items = driver.find_elements_by_xpath(xpath)
         length = len(list_of_items)
@@ -349,10 +349,10 @@ def scroll_bottom_again(driver, url, type):
             pass"""
 
 
-def get_posts_lists(driver, url, type2):
+def get_posts_lists(driver, url, page_type):
     """This starts the process of separating posts from a URL"""
     print("Getting posts for " + url)
-    if type2 == "Groups":
+    if page_type == "Groups":
         get_posts_lists_groups(driver, url)
     # check to see if element is there
     time.sleep(2)

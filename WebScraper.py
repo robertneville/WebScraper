@@ -21,7 +21,7 @@ class WebScraper:
 
     def __init__(self):
         self.username = " @gmail.com"
-        self.password = " "
+        self.password = ""
 
     def set_password(self, password):
         assert isinstance(password, str)
@@ -62,9 +62,9 @@ def enter_login_details(driver, webscraper):
     login_button.click()
 
 
-def search(driver, term):
-    """Search for a town or city"""
-    print("Searching for " + term + ".")
+def search_town(driver, term, type):
+    """Search for a town or city. At this stage, results are not filtered."""
+    print("Searching for " + term)
     try:
         wait(By.XPATH, "/html/body/div[1]/div[2]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[2]" +
              "/div[1]/form[1]/div[1]/div[1]/div[1]/div[1]/input[2]", driver)
@@ -76,21 +76,28 @@ def search(driver, term):
         search_button = driver.find_element_by_xpath("/html/body/div[1]/div[2]/div[1]/div[1]/div[1]/div[1]/div[1]" +
                                                      "/div[1]/div[2]/div[1]/form[1]/button[1]")
         # enter the search term and click the button and pause
-        search_box.send_keys(term)
-        search_button.click()
-        # time.sleep(1)
-        print("Found results for " + term + ".")
+        time.sleep(5)
+        # adding New Zealand to search term gives results from all over New Zealand. Will not use it here.
+        if type == "Pages":
+            search_box.send_keys(term)
+            search_button.click()
+            print("Found results for " + term + ".")
+        # not adding New Zealand to search term gets results from overseas in some cases. Filter here.
+        else:
+            search_box.send_keys(term + " New Zealand")
+            search_button.click()
+            print("Found results for " + term + ", New Zealand.")
     except(NoSuchElementException, ElementNotSelectableException, ElementNotInteractableException) as e:
-        print("search" + (str(e)))
+        print("search" + (str(e)) + ". Program has failed. Restart program.")
         sys.exit(1)
 
 
-def scroll_bottom(driver, name):
-    """this scrolls to bottom of page to show all of the elements on a page."""
+def scroll_bottom_results(driver, type):
+    """this scrolls to bottom of results to show all of the hidden elements on a page."""
     time.sleep(5)
     print("Scrolling...")
-    if name == "Pages":
-        # goto container that has reults in it. Count the divs inside.
+    if type == "Pages":
+        # go to container that has reults in it. Count the divs inside.
         no_of_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
                                                         "div[1]/div[2]/div[1]/div[1]/div[1]/div"))
         # scroll down, hoping to trigger more results. Pause to give time to load those results
@@ -116,40 +123,16 @@ def scroll_bottom(driver, name):
             items_list.pop()
         print("finished scrolling")
         # get the URLs
-        parse_items_pages(items_list, name)
-    elif name == "Places":
-        no_of_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
-                                                        "div[1]/div[2]/div[1]/div[1]/div[1]/div/div/div/ul/li"))
-        # scroll down, hoping to trigger more results. Pause to give time to load those results
-        driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
-        wait(By.XPATH, "/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
-             "div[1]/div[2]/div[1]/div[1]/div[1]/div/div/div/ul/li", driver)
-        # Count li again.
-        total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
-                                                        "div[1]/div[2]/div[1]/div[1]/div[1]/div/div/div/ul/li"))
-        # If total_items > no_of_items then more li were loaded. Scroll again. If not, bottom was reached.
-        count = 0
-        while total_items > no_of_items & count < 10:
-            count += 1
-            no_of_items = total_items
-            driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
-            print("Scrolling...")
-            time.sleep(1)
-            total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/" +
-                                                            "div[1]/div[2]/div[1]/div[1]/div[1]/div/div/div/ul/li"))
-        # we have got to bottom of page. Load all elements into a list.
-        items_list = driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
-                                                   "div[1]/div[2]/div[1]/div[1]/div[1]/div/div/div/ul/li")
-        print("finished scrolling")
-        # get the URLs
-        parse_items_places(items_list, name)
+        parse_items_pages(items_list, type)
     else:
         time.sleep(2)
+        # clicking on open groups radio button.
         click_radio = driver.find_element_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div[3]/div[1]/div/div/div/" +
                                                    "span/div/div/div[2]/div/a[2]")
         time.sleep(2)
         click_radio.click()
         time.sleep(2)
+        # only open groups in search results
         no_of_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
                                                         "div[1]/div[2]/div[1]/div[1]/div[1]/div"))
         # scroll down, hoping to trigger more results. Pause to give time to load those results
@@ -177,12 +160,12 @@ def scroll_bottom(driver, name):
             items_list.pop()
         print("finished scrolling. The length of items_list is " + str(len(items_list)))
         # get the URLs
-        parse_items_groups(items_list, name)
+        parse_items_groups(items_list, type)
 
 
-def parse_items_pages(items_list, name):
+def parse_items_pages(items_list, type):
     """Parses the list for DIVs we can use"""
-    print("Parsing Items in the " + name + " list...")
+    print("Parsing Items in the " + type + " list...")
     my_list = []
     time.sleep(2)
     # go through the divs and add individual divs inside to a list
@@ -190,41 +173,34 @@ def parse_items_pages(items_list, name):
         # The first div has different xpath
         if i == 0:
             first_list = items_list[i].find_elements_by_xpath("div")
-            my_list.extend(first_list)
+            # check to see if New Zealand is in description. If it is then add to list.
+            for j in range(len(first_list)):
+                if first_list[j].text.find("New Zealand") >= 0:
+                    my_list.append(first_list[j])
+        # The second xpath has another different xpath
         elif i == 1:
-            # The second xpath has another different xpath
             second_list = items_list[i].find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div[3]/div[2]/" +
                                                                "div/div/div[2]/div/div/div/div[2]/div/div/div")
-            my_list.extend(second_list)
+            # check to see if New Zealand is in description. If it is then add to list.
+            for j in range(len(second_list)):
+                if second_list[j].text.find("New Zealand") >= 0:
+                    my_list.append(second_list[j])
         else:
             # each xpath after the first two has same xpath pattern
             else_list = items_list[i].find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div[3]/div[2]/" +
                                                              "div/div/div[2]/div/div/div/div[" + str(i + 1) +
                                                              "]/div/div")
-            my_list.extend(else_list)
-    print("Parsing the " + name + " list is finished.")
-    get_hrefs(my_list, name)
+            # check to see if New Zealand is in description. If it is then add to list.
+            for j in range(len(else_list)):
+                if else_list[j].text.find("New Zealand") >= 0:
+                    my_list.append(else_list[j])
+    print("Parsing the " + type + " list is finished.")
+    get_hrefs(my_list, type)
 
 
-def parse_items_places(items_list, name):
+def parse_items_groups(items_list, type):
     """Parses the list for DIVs we can use"""
-    print("Parsing Items in the " + name + " list...")
-    my_list = []
-    time.sleep(2)
-    # go through the divs and add individual divs inside to a list
-    for i in range(len(items_list)):
-        first_list = items_list[i].find_elements_by_xpath(".//div/div[2]/div/div[2]/div/div/table/tbody/tr/td/" +
-                                                          "div/div[2]/span/a")
-        # /html/body/div[1]/div[3]/div[1]/div/div[3]/div[2]/div/div/div[2]/div/div/div/div/div/div/ul/li[1]\
-        # /div/div[2]/div/div[2]/div/div/table/tbody/tr[1]/td/div/div[2]/span/a
-        my_list.extend(first_list)
-    print("Parsing the " + name + " list is finished.")
-    get_hrefs(my_list, name)
-
-
-def parse_items_groups(items_list, name):
-    """Parses the list for DIVs we can use"""
-    print("Parsing Items in the " + name + " list...")
+    print("Parsing Items in the " + type + " list...")
     my_list = []
     time.sleep(2)
     # go through the divs and add individual divs inside to a list
@@ -246,17 +222,22 @@ def parse_items_groups(items_list, name):
                                                              "/div[2]/div[1]/div[1]/div[2]/div[1]/div[1]/div[1]" +
                                                              "/div[" + str(i) + "]/div/div")
             my_list.extend(else_list)
-    print("Parsing the " + name + " list is finished.")
-    get_hrefs(my_list, name)
+    print("Parsing the " + type + " list is finished.")
+    get_hrefs(my_list, type)
 
 
 def get_hrefs(my_list, name):
     """This gets the URLS from the list of DIVs"""
     # in each div in the list, find the url. pause added to show progress ... When URL found, add to a global list
+    # only getting the first five valid results.
     for i in range(5):
-        time.sleep(2)
-        temp = my_list[i].find_element_by_tag_name("a").get_attribute('href')
-        list_of_links.append(temp)
+        try:
+            time.sleep(2)
+            temp = my_list[i].find_element_by_tag_name("a").get_attribute('href')
+            list_of_links.append(temp)
+        # if there isn't five valid HREFS then exception will just pass. There is only 5 we need so it will be fast.
+        except IndexError:
+            pass
     print("Finished getting HREFS for " + name + ".")
 
 
@@ -268,15 +249,15 @@ def open_links(driver, my_list, page_type):
         driver.get(my_list[i])
         try:
             # click on the posts link to get to posts
-            if page_type == "Groups":
-                driver.find_element_by_partial_link_text("Discussion").click()
-            else:
+            if page_type == "Pages":
                 driver.find_element_by_partial_link_text('Posts').click()
+            else:
+                driver.find_element_by_partial_link_text('Discussion').click()
             # scrolls to bottom of page
-            scroll_bottom_pages(driver, my_list[i])
+            scroll_bottom_again(driver, my_list[i], page_type)
             # starts process for getting posts
             time.sleep(3)
-            get_posts_lists(driver, my_list[i], page_type)
+            get_posts_lists(driver, my_list[i], page_type, )
         except (NoSuchElementException, ElementNotSelectableException, ElementNotInteractableException) as e:
             print("open_links There are no posts for " + my_list[i] + " " + str(e))
             pass
@@ -285,10 +266,76 @@ def open_links(driver, my_list, page_type):
             pass
 
 
-def scroll_bottom_pages(driver, url):
-    """Scrolls to bottom of 'PAGES' pages"""
+def scroll_bottom_again(driver, url, type):
+    """Second time we are scrolling down. We are on an individual Pages or Groups Page.
+       Scrolling down to get all of the posts and comments. May be quite large"""
     print("Scrolling " + url + "...")
-    # only scrolling down 10 times at maximum on each page.
+    # Scrolling down whole page
+    if type == "Pages":
+        xpath = "/html/body/div[1]/div[3]/div[1]/div/div/div[2]/div[2]/div/div[2]/div[2]/div/div/div[2]/div/div"
+        list_of_items = driver.find_elements_by_xpath(xpath)
+        length = len(list_of_items)
+        # scroll down, hoping to trigger more results. Pause to give time to load those results
+        driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+        # wait for more divs to load.
+        time.sleep(3)
+        # if the last div has class of _1xnd then there is more scrolling to be done.
+        xpath2 = "/html/body/div[1]/div[3]/div[1]/div/div/div[2]/div[2]/div/div[2]/div[2]/div/div/div[2]/" + \
+                 "div/div[" + str(length) + "]"
+        while list_of_items[length-1].get_attribute('class') == "_1xnd":
+            # scroll down and allow time for new items to load
+            driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+            time.sleep(3)
+            # clear old list and create new list with the new items that have been scrolled.
+            list_of_items.clear()
+            list_of_items = driver.find_elements_by_xpath(xpath2 + "/div")
+            # get new length of the list of new divs
+            new_length = len(list_of_items)
+            # create new xpath to find the children of the last item in the new list of items
+            xpath_addition = "/div[" + str(new_length) + "]"
+            xpath2 += xpath_addition
+
+        # Count divs again again.
+        total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div/div[2]/div[2]/div/" +
+                                                        "div[2]/div[2]/div/div/div[2]/div"))
+
+        total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
+                                                        "div[1]/div[2]/div[1]/div[1]/div[1]/div"))
+        # If total_items > no_of_items then more div were loaded. Scroll again. If not, bottom was reached.
+        while total_items != no_of_items:
+            no_of_items = total_items
+            driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+            print("Scrolling...")
+            time.sleep(2)
+            total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]" +
+                                                            "/div[2]/div[1]/div[1]/div[2]/div[1]/div[1]/div[1]/div"))
+        print("finished scrolling " + url + ".")
+    else:
+        no_of_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div[2]/div[2]/div[2]/ + "
+                                                        "div/div[2]/div[2]/div[9]/div[5]/div/div[1]/div[1]/div"))
+        # scroll down, hoping to trigger more results. Pause to give time to load those results
+        driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+        # wait for more divs to load.
+        time.sleep(2)
+        # Count divs again again.
+        total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div[2]/div[2]/div[2]/ + "
+                                                        "div/div[2]/div[2]/div[9]/div[5]/div/div[1]/div[1]/div"))
+
+        total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
+                                                        "div[1]/div[2]/div[1]/div[1]/div[1]/div"))
+        # If total_items > no_of_items then more div were loaded. Scroll again. If not, bottom was reached.
+        while total_items != no_of_items:
+            no_of_items = total_items
+            driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+            print("Scrolling...")
+            time.sleep(2)
+            total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]" +
+                                                            "/div[2]/div[1]/div[1]/div[2]/div[1]/div[1]/div[1]/div"))
+        print("finished scrolling " + url + ".")
+
+
+
+    """ # only scrolling down 10 times at maximum on each page.
     for i in range(10):
         try:
             driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
@@ -299,7 +346,7 @@ def scroll_bottom_pages(driver, url):
             pass
         except (Exception, NoSuchElementException, ElementNotInteractableException, ElementNotSelectableException) as e:
             print("scroll_bottom_pages" + str(e))
-            pass
+            pass"""
 
 
 def get_posts_lists(driver, url, type2):
@@ -574,7 +621,7 @@ def get_list_of_comments(comment_list):
     return returns_list
 
 
-def test(my_web_scraper, error_counter2):
+def run_scrapper(my_web_scraper, error_counter2):
     """Chooses what browser to use and creates a driver for that browser"""
     start_time = time.clock()
     # Choose wich browser to use
@@ -603,7 +650,7 @@ def test(my_web_scraper, error_counter2):
     open_webpage(driver)
     # enterlogin details and login
     enter_login_details(driver, my_web_scraper)
-    search(driver, "Addington")
+    search_town(driver, "Addington", "Pages")
     try:
         time.sleep(3)
         driver.find_element_by_partial_link_text("Pages").click()
@@ -623,7 +670,7 @@ def test(my_web_scraper, error_counter2):
     except Exception as ex:
         print("unknown error" + str(ex))
         sys.exit(1)
-    scroll_bottom(driver, "Pages")
+    scroll_bottom_results(driver, "Pages")
     # scroll_bottom(driver, "Places")
     # scroll_bottom(driver, "Groups")
     open_links(driver, list_of_links, "Pages")
@@ -643,4 +690,4 @@ if __name__ == "__main__":
     # p_word = input('What is your Facebook password?')
     # web_scraper.set_username(u_name)
     # web_scraper.set_password(p_word)
-    test(web_scraper, error_counter)
+    run_scrapper(web_scraper, error_counter)

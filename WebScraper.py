@@ -1,6 +1,8 @@
 # import libraries
+import datetime
 import time
 import sys
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -20,8 +22,9 @@ class WebScraper:
     """This class carries the username and pw of a facebook account. Default is user and pw"""
 
     def __init__(self):
-        self.username = "@gmail.com"
+        self.username = ""
         self.password = ""
+        self.search = ""
 
     def set_password(self, password):
         assert isinstance(password, str)
@@ -30,6 +33,10 @@ class WebScraper:
     def set_username(self, username):
         assert isinstance(username, str)
         self.username = username
+
+    def set_search(self, searchterm):
+        assert isinstance(searchterm, str)
+        self.search = searchterm
 
 
 def wait(by_type, value, driver):
@@ -44,14 +51,12 @@ def wait(by_type, value, driver):
         pass
 
 
-def open_webpage(driver):
-    """Opens facebook"""
-    # set up the web browser and goto the web page
-    driver.get('https://www.facebook.com/')
-
-
 def enter_login_details(driver, webscraper):
     """Logs into facebook"""
+    u_name = input('What is your Facebook username?\n')
+    p_word = input('What is your Facebook password?\n')
+    web_scraper.set_username(u_name)
+    web_scraper.set_password(p_word)
     # find the elements needed to login
     username_box = driver.find_element_by_id('email')
     password_box = driver.find_element_by_id('pass')
@@ -62,40 +67,10 @@ def enter_login_details(driver, webscraper):
     login_button.click()
 
 
-def search_town(driver, term, page_type):
-    """Search for a town or city. At this stage, results are not filtered."""
-    print("Searching for " + term)
-    try:
-        wait(By.XPATH, "/html/body/div[1]/div[2]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[2]" +
-             "/div[1]/form[1]/div[1]/div[1]/div[1]/div[1]/input[2]", driver)
-        wait(By.XPATH, "/html/body/div[1]/div[2]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[2]" +
-             "/div[1]/form[1]/button[1]", driver)
-        # find the elements needed to search
-        search_box = driver.find_element_by_xpath("/html/body/div[1]/div[2]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]" +
-                                                  "/div[2]/div[1]/form[1]/div[1]/div[1]/div[1]/div[1]/input[2]")
-        search_button = driver.find_element_by_xpath("/html/body/div[1]/div[2]/div[1]/div[1]/div[1]/div[1]/div[1]" +
-                                                     "/div[1]/div[2]/div[1]/form[1]/button[1]")
-        # enter the search term and click the button and pause
-        time.sleep(5)
-        # adding New Zealand to search term gives results from all over New Zealand. Will not use it here.
-        if page_type == "Pages":
-            search_box.send_keys(term)
-            search_button.click()
-            print("Found results for " + term + ".")
-        # not adding New Zealand to search term gets results from overseas in some cases. Filter here.
-        else:
-            search_box.send_keys(term + " New Zealand")
-            search_button.click()
-            print("Found results for " + term + ", New Zealand.")
-    except(NoSuchElementException, ElementNotSelectableException, ElementNotInteractableException) as e:
-        print("search" + (str(e)) + ". Program has failed. Restart program.")
-        sys.exit(1)
-
-
 def scroll_bottom_results(driver, page_type):
     """this scrolls to bottom of results to show all of the hidden elements on a page."""
     time.sleep(5)
-    print("Scrolling...")
+    print('-+', end='', flush=True)
     if page_type == "Pages":
         # go to container that has reults in it. Count the divs inside.
         no_of_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
@@ -110,7 +85,7 @@ def scroll_bottom_results(driver, page_type):
         while total_items > no_of_items:
             no_of_items = total_items
             driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
-            print("Scrolling...")
+            print('-+', end='', flush=True)
             time.sleep(5)
             total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/" +
                                                             "div[1]/div[1]/div[2]/div[1]/div[1]/div[1]/div"))
@@ -133,27 +108,22 @@ def scroll_bottom_results(driver, page_type):
         click_radio.click()
         time.sleep(2)
         # only open groups in search results
-        no_of_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
-                                                        "div[1]/div[2]/div[1]/div[1]/div[1]/div"))
+        scroll_items = len(driver.find_elements_by_xpath("// *[ @ id = \"u_ps_jsonp_5_3_0\"]/div"))
         # scroll down, hoping to trigger more results. Pause to give time to load those results
-        driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
         # time.sleep(2)
-        wait(By.XPATH, "/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
-             "div[1]/div[2]/div[1]/div[1]/div[1]/div", driver)
+        driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+        time.sleep(3)
         # Count divs again again.
-        total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
-                                                        "div[1]/div[2]/div[1]/div[1]/div[1]/div"))
-        # If total_items > no_of_items then more li were loaded. Scroll again. If not, bottom was reached.
-        while total_items != no_of_items:
-            no_of_items = total_items
+        new_scroll_items = len(driver.find_elements_by_xpath("// *[ @ id = \"u_ps_jsonp_5_3_0\"]/div"))
+        # If new_scroll_items >  scroll_items then more items were loaded. Scroll again. If not, bottom was reached.
+        while new_scroll_items != scroll_items:
+            scroll_items = new_scroll_items
+            print('-+', end='', flush=True)
             driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
-            print("Scrolling...")
-            time.sleep(2)
-            total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]" +
-                                                            "/div[2]/div[1]/div[1]/div[2]/div[1]/div[1]/div[1]/div"))
+            time.sleep(3)
+            new_scroll_items = len(driver.find_elements_by_xpath("// *[ @ id = \"u_ps_jsonp_5_3_0\"]/div"))
         # we have got to bottom of page. Load all elements into a list.
-        items_list = driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
-                                                   "div[1]/div[2]/div[1]/div[1]/div[1]/div")
+        items_list = driver.find_elements_by_xpath("//*[@id=\"BrowseResultsContainer\"]/div")
         # last two divs probably have useless information
         if len(items_list) > 3:
             items_list.pop()
@@ -208,20 +178,33 @@ def parse_items_groups(items_list, page_type):
         print("my_list length = " + str(len(my_list)))
         # The first div has different xpath
         if i == 0:
-            first_list = items_list[i].find_elements_by_xpath("//*[@id=BrowseResultsContainer]")
+            first_list = items_list[i].find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div[3]/div[2]" +
+                                                              "/div/div/div[2]/div/div/div/div[1]/div")
             my_list.extend(first_list)
+            # check to see if items in this list are from New Zealand.
+            """for j in range(len(first_list)):
+                if first_list[j].text.find("New Zealand") >= 0:
+                    my_list.append(first_list[j])"""
         elif i == 1:
             # The second xpath has another different xpath
             second_list = items_list[i].find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]" +
                                                                "/div[1]/div[3]/div[2]/div[1]/div[1]/" +
                                                                "div[2]/div[1]/div[1]/div[1]/div/div/div/div")
             my_list.extend(second_list)
+            # check to see if items in this list are from New Zealand.
+            """for j in range(len(second_list)):
+                if second_list[j].text.find("New Zealand") >= 0:
+                    my_list.append(second_list[j])"""
         else:
             # each xpath after the first two has same xpath pattern
             else_list = items_list[i].find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]" +
                                                              "/div[2]/div[1]/div[1]/div[2]/div[1]/div[1]/div[1]" +
                                                              "/div[" + str(i) + "]/div/div")
             my_list.extend(else_list)
+            """"# check to see if items in this list are from New Zealand.
+            for j in range(len(else_list)):
+                if else_list[j].text.find("New Zealand") >= 0:
+                    my_list.append(else_list[j])"""
     print("Parsing the " + page_type + " list is finished.")
     get_hrefs(my_list, page_type)
 
@@ -272,69 +255,59 @@ def scroll_bottom_again(driver, url, page_type):
     print("Scrolling " + url + "...")
     # Scrolling down whole page
     if page_type == "Pages":
+        time.sleep(3)
+        # scroll down, hoping to trigger more results. Pause to give time to load those results
+        driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+        time.sleep(3)
         xpath = "/html/body/div[1]/div[3]/div[1]/div/div/div[2]/div[2]/div/div[2]/div[2]/div/div/div[2]/div/div"
         list_of_items = driver.find_elements_by_xpath(xpath)
         length = len(list_of_items)
-        # scroll down, hoping to trigger more results. Pause to give time to load those results
-        driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
         # wait for more divs to load.
-        time.sleep(3)
+        # time.sleep(3)
         # if the last div has class of _1xnd then there is more scrolling to be done.
         xpath2 = "/html/body/div[1]/div[3]/div[1]/div/div/div[2]/div[2]/div/div[2]/div[2]/div/div/div[2]/" + \
                  "div/div[" + str(length) + "]"
-        while list_of_items[length-1].get_attribute('class') == "_1xnd":
-            # scroll down and allow time for new items to load
-            driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
-            time.sleep(3)
-            # clear old list and create new list with the new items that have been scrolled.
-            list_of_items.clear()
-            list_of_items = driver.find_elements_by_xpath(xpath2 + "/div")
-            # get new length of the list of new divs
-            new_length = len(list_of_items)
-            # create new xpath to find the children of the last item in the new list of items
-            xpath_addition = "/div[" + str(new_length) + "]"
-            xpath2 += xpath_addition
+        try:
+            while list_of_items[length-1].get_attribute("class") == "_1xnd":
+                # scroll down and allow time for new items to load
+                driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+                time.sleep(5)
+                # clear old list and create new list with the new items that have been scrolled.
+                list_of_items.clear()
+                list_of_items = driver.find_elements_by_xpath(xpath2 + "/div")
+                # get new length of the list of new divs
+                length = len(list_of_items)
+                # at the end of scrolling the list of items could be empty. This means there is nothing more to scroll.
+                if length == 0:
+                    break
+                # create new xpath to find the children of the last item in the new list of items
+                xpath_addition = "/div[" + str(length) + "]"
+                xpath2 += xpath_addition
+        except (ElementNotSelectableException, ElementNotInteractableException) as e:
+            print("scroll_bottom_again. Error occured in  " + url + ". " + e)
 
-        # Count divs again again.
-        total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div/div[2]/div[2]/div/" +
-                                                        "div[2]/div[2]/div/div/div[2]/div"))
-
-        total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
-                                                        "div[1]/div[2]/div[1]/div[1]/div[1]/div"))
-        # If total_items > no_of_items then more div were loaded. Scroll again. If not, bottom was reached.
-        while total_items != no_of_items:
-            no_of_items = total_items
-            driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
-            print("Scrolling...")
-            time.sleep(2)
-            total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]" +
-                                                            "/div[2]/div[1]/div[1]/div[2]/div[1]/div[1]/div[1]/div"))
         print("finished scrolling " + url + ".")
+
     else:
-        no_of_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div[2]/div[2]/div[2]/ + "
-                                                        "div/div[2]/div[2]/div[9]/div[5]/div/div[1]/div[1]/div"))
+        time.sleep(3)
+        no_of_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div[2]/div[2]/div[2]/" +
+                                                        "div/div[2]/div[2]/div[9]/div[5]/div/div[1]/div"))
         # scroll down, hoping to trigger more results. Pause to give time to load those results
         driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
         # wait for more divs to load.
-        time.sleep(2)
+        time.sleep(5)
         # Count divs again again.
-        total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div[2]/div[2]/div[2]/ + "
-                                                        "div/div[2]/div[2]/div[9]/div[5]/div/div[1]/div[1]/div"))
-
-        total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]/div[2]/div[1]/" +
-                                                        "div[1]/div[2]/div[1]/div[1]/div[1]/div"))
+        total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div[2]/div[2]/div[2]/" +
+                                                        "div/div[2]/div[2]/div[9]/div[5]/div/div[1]/div"))
         # If total_items > no_of_items then more div were loaded. Scroll again. If not, bottom was reached.
         while total_items != no_of_items:
             no_of_items = total_items
             driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
-            print("Scrolling...")
-            time.sleep(2)
-            total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div[1]/div[3]" +
-                                                            "/div[2]/div[1]/div[1]/div[2]/div[1]/div[1]/div[1]/div"))
+            print('-+', end='', flush=True)
+            time.sleep(3)
+            total_items = len(driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div[2]/div[2]/div[2]" +
+                                                            "/div/div[2]/div[2]/div[9]/div[5]/div/div[1]/div"))
         print("finished scrolling " + url + ".")
-
-
-
     """ # only scrolling down 10 times at maximum on each page.
     for i in range(10):
         try:
@@ -370,22 +343,22 @@ def get_posts_lists(driver, url, page_type):
 
 def get_posts_lists_groups(driver, url):
     """This starts the process of separating posts from a URL"""
-     # print("Getting posts for " + url)
+    # print("Getting posts for " + url)
     time.sleep(5)
     return_list = []
     # check to see if element is there
     wait(By.XPATH, "/html/body/div[1]/div[3]/div[1]/div/div[2]/div[2]/div[2]/div/div[2]/div[2]" +
-         "/div[9]/div[4]/div/div", driver)
+         "/div[9]/div[5]/div/div", driver)
     # a list of each card on the page
     list_of_posts = driver.find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div[2]/div[2]/div[2]/div/" +
-                                                  "div[2]/div[2]/div[9]/div[4]/div/div/div")
+                                                  "div[2]/div[2]/div[9]/div[5]/div/div/div")
     time.sleep(3)
     # recent activity and older divs to be removed
     try:
         if len(list_of_posts) > 0:
             # break up first element that contains recent and older posts
             temp_list = list_of_posts[0].find_elements_by_xpath("/html/body/div[1]/div[3]/div[1]/div/div[2]/div[2]" +
-                                                                "/div[2]/div/div[2]/div[2]/div[9]/div[4]/div/div/" +
+                                                                "/div[2]/div/div[2]/div[2]/div[9]/div[5]/div/div/" +
                                                                 "div[1]/div")
             for i in range(len(temp_list)):
                 wait(By.XPATH, "/html/body/div[1]/div[3]/div[1]/div/div[2]/div[2]/div[2]/div/div[2]/div[2]/div[9]" +
@@ -410,21 +383,30 @@ def parse_cards(driver, xpath):
        Continue until we reach the div with the id."""
     list_of_cards = driver.find_elements_by_xpath(xpath)
     length = len(list_of_cards)
-    last_9 = length - 9
-    for i in range(last_9, length):
-        try:
-            card_class = list_of_cards[i].get_attribute("class")
-            if card_class != "_1xnd":
+    if length >= 9:
+        last_9 = length - 9
+        for i in range(last_9, length):
+            try:
+                card_class = list_of_cards[i].get_attribute("class")
+                if card_class != "_1xnd":
+                    card_id = list_of_cards[i].get_attribute("id")
+                    if card_id != "www_pages_reaction_see_more_unitwww_pages_posts":
+                        global_card_list.append(list_of_cards[i])
+                    else:
+                        pass
+                else:
+                    """CHECK HERE. IS THIS RIGHT?"""
+                    new_xpath = xpath + "/div"
+                    parse_cards(driver, new_xpath)
+            except IndexError:
+                pass
+        else:
+            for i in range(length):
                 card_id = list_of_cards[i].get_attribute("id")
                 if card_id != "www_pages_reaction_see_more_unitwww_pages_posts":
                     global_card_list.append(list_of_cards[i])
                 else:
                     pass
-            else:
-                new_xpath = xpath + "/div"
-                parse_cards(driver, new_xpath)
-        except IndexError:
-            pass
 
 
 def parse_posts(list_of_posts, url):
@@ -445,19 +427,16 @@ def parse_posts(list_of_posts, url):
 def parse_posts_groups(list_of_posts, url):
     """This parses the posts of a page"""
     print("Parsing posts of " + url)
-    my_list = []
     for i in range(len(list_of_posts)):
-        time.sleep(3)   # wait(By.XPATH, "/html/body/div[1]/div[3]/div[1]/div/div[2]/div[2]/div[2]/div/div[2]/div[2]/div[9]/" +
-     #          "div[4]/div/div[1]", list_of_posts[i])
+        time.sleep(3)
         click_links(list_of_posts[i])
         # wait for just clicked links to register
         time.sleep(3)
         comment_divs = get_web_comment_groups(list_of_posts[i])
         comments_list = get_list_of_comments(comment_divs)
         global_list_of_comments.extend(comments_list)
-        print(str(len(global_list_of_comments)))
+        # print(str(len(global_list_of_comments)))
     print("Parsing the " + url + " list is finished.")
-    # get_hrefs(my_list, name)
 
 
 def click_links(driver):
@@ -574,7 +553,7 @@ def get_web_comment_groups(driver):
                     return comment_divs
                 return comment_divs
             elif no_of_divs == 5:
-                comment_divs = driver.find_elements_by_xpath(".//div/div[3]/div[2]/form/div[2]/div/div[4]/div/div")# check to see if comment_divs is empty
+                comment_divs = driver.find_elements_by_xpath(".//div/div[3]/div[2]/form/div[2]/div/div[4]/div/div")
                 if len(comment_divs) < 2:
                     comment_divs = driver.find_elements_by_xpath(".//div/div[3]/div[2]/form/div[2]/div/div[5]/div/div")
                     return comment_divs
@@ -621,61 +600,107 @@ def get_list_of_comments(comment_list):
     return returns_list
 
 
-def run_scrapper(my_web_scraper, error_counter2):
+def set_driver():
+    """returns a WebDriver to open either a Chrome or Firefox web browser"""
+    # Choose which browser to use
+    action = input('Do you want to use [C]hrome or [F]irefox?\n').upper()
+    if action not in "CF" or len(action) != 1:
+        print("You didn't pick [C]hrome or [F]irefox. Give it another go\n")
+        set_driver()
+    else:
+        # Chrome browser
+        if action == 'C':
+            chrome_options = webdriver.ChromeOptions()
+            prefs = {"profile.default_content_setting_values.notifications": 2}
+            chrome_options.add_experimental_option("prefs", prefs)
+            driver = webdriver.Chrome(chrome_options=chrome_options)
+            return driver
+        # Firefox browser
+        else:
+            ffprofile = webdriver.FirefoxProfile()
+            ffprofile.set_preference("dom.webnotifications.enabled", False)
+            driver = webdriver.Firefox(firefox_profile=ffprofile)
+            return driver
+
+
+def search_town(driver, my_webdriver):
+    """Search for a town or city."""
+    searchtown = input("Enter a town to search for. Facebook has a very simple search function. \n" +
+                       "Using special search characters such as \"+\" or quotes around terms will not work.\n" +
+                       "Addington New Zealand or Maraenui are examples of good searches. \"Addington\" + New Zealand" +
+                       " is not.\n")
+    print("Searching for " + searchtown)
+    my_webdriver.set_search(searchtown)
+    try:
+        wait(By.XPATH, "/html/body/div[1]/div[2]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[2]" +
+             "/div[1]/form[1]/div[1]/div[1]/div[1]/div[1]/input[2]", driver)
+        wait(By.XPATH, "/html/body/div[1]/div[2]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[2]" +
+             "/div[1]/form[1]/button[1]", driver)
+        # find the elements needed to search
+        search_box = driver.find_element_by_xpath("/html/body/div[1]/div[2]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]" +
+                                                  "/div[2]/div[1]/form[1]/div[1]/div[1]/div[1]/div[1]/input[2]")
+        search_button = driver.find_element_by_xpath("/html/body/div[1]/div[2]/div[1]/div[1]/div[1]/div[1]/div[1]" +
+                                                     "/div[1]/div[2]/div[1]/form[1]/button[1]")
+        # enter the search term and click the button and pause
+        time.sleep(5)
+        search_box.send_keys(searchtown)
+        search_button.click()
+        print("Found results for " + searchtown + ".")
+    except(NoSuchElementException, ElementNotSelectableException, ElementNotInteractableException) as e:
+        print("search" + (str(e)) + ". Program has failed. Restart program.")
+        sys.exit(1)
+
+
+def type_search(driver, my_web_scraper):
+    """This chooses either Pages or Groups then it goes to those search pages and scrolls to bottom of that page
+       find the link to each page on that page and then finds each post on that page and gets any comments"""
+    type_of_search = input("Are you looking for [P]ages or [G]roups.\n").upper()
+    if type_of_search not in "PG":
+        print("You didn't choose [P]ages or [G]roups. Try again.\n")
+        type_search(driver, my_web_scraper)
+    try:
+        if type_of_search == 'P':
+            driver.find_element_by_partial_link_text("Pages").click()
+            time.sleep(5)
+            scroll_bottom_results(driver, "Pages")
+            open_links(driver, list_of_links, "Pages")
+            output_to_file("Pages", my_web_scraper)
+        elif type_of_search == 'G':
+            driver.find_element_by_partial_link_text("Groups").click()
+            time.sleep(5)
+            scroll_bottom_results(driver, "Groups")
+            open_links(driver, list_of_links, "Groups")
+            output_to_file("Groups", my_web_scraper)
+    except (Exception, NoSuchElementException, ElementNotInteractableException, ElementNotSelectableException) as e:
+        print("Shutting down browser and program. " + e)
+        # close browser, give time to read error message and shut down program.
+        driver.close()
+        time.sleep(25)
+        sys.exit(1)
+
+
+def output_to_file(page_type, my_web_scraper):
+    """writes list of commets to file. Naming format should be like page_type_dd_mm_YYYY_H_M_S
+    e.g. Maranui_Pages_22_7_2018_4_28_58.txt"""
+    now = datetime.datetime.now()
+    filename = my_web_scraper.search + "_" + page_type + "_" + str(now.strftime("%d_%m_%Y_%H_%M_%S")) + ".txt"
+    file = open(filename, "w")
+    for i in range(len(global_list_of_comments)):
+        file.write(global_list_of_comments[i])
+
+
+def run_scraper(my_web_scraper):
     """Chooses what browser to use and creates a driver for that browser"""
     start_time = time.clock()
-    # Choose wich browser to use
-    # action = input('Do you want to use [C]hrome or [F]irefox?').upper()
-    # if action not in "CF" or len(action)!=1:
-    #   print("You didn't pick [C]hrome or [F]irefox. Give it another go")
-    #   test(my_web_scraper)
-    # create driver for Chrome
-    # if action == 'C':
-    #    chrome_options = webdriver.ChromeOptions()
-    #    prefs = {"profile.default_content_setting_values.notifications": 2}
-    #    chrome_options.add_experimental_option("prefs", prefs)
-    #    driver = webdriver.Chrome(chrome_options=chrome_options)
-    #    # driver chosen, open the webpage.
-    #   open_webpage(driver)
-    #    # enterlogin details and login
-    #    enter_login_details(driver, my_web_scraper)
-    #    # search for Maraenui
-    #    search(driver)
-    # create driver for Firefox
-    # elif action == 'F':
-    ffprofile = webdriver.FirefoxProfile()
-    ffprofile.set_preference("dom.webnotifications.enabled", False)
-    driver = webdriver.Firefox(firefox_profile=ffprofile)
-    # driver chosen, open the webpage.
-    open_webpage(driver)
-    # enterlogin details and login
+    # get the WebDriver for selected browser and open the browser
+    driver = set_driver()
+    driver.get('http://facebook.com')
+    # get user Facebook details and use them.
     enter_login_details(driver, my_web_scraper)
-    search_town(driver, "Addington", "Pages")
-    try:
-        time.sleep(3)
-        driver.find_element_by_partial_link_text("Pages").click()
-        # driver.find_element_by_partial_link_text("Places").click()
-        # driver.find_element_by_partial_link_text("Groups").click()
-    except (Exception, NoSuchElementException, ElementNotInteractableException, ElementNotSelectableException) as e:
-        print("test " + e)
-        driver.close()
-        error_counter2 += 1
-        if error_counter2 < 5:
-            web_scraper2 = WebScraper()
-            test(web_scraper2, error_counter2)
-            pass
-        else:
-            print("There was an unresolved issue and there were too many errors. Program will close")
-            sys.exit(1)
-    except Exception as ex:
-        print("unknown error" + str(ex))
-        sys.exit(1)
-    scroll_bottom_results(driver, "Pages")
-    # scroll_bottom(driver, "Places")
-    # scroll_bottom(driver, "Groups")
-    open_links(driver, list_of_links, "Pages")
-    # open_links(driver, list_of_links, "Places")
-    # open_links(driver, list_of_links, "Groups")
+    # enter search parameter and search for it.
+    search_town(driver, my_web_scraper)
+    # decide what you are looking for. Pages or Groups and then get data
+    type_search(driver, my_web_scraper)
     for i in range(len(global_list_of_comments)):
         print(global_list_of_comments[i])
     print("My program took", time.clock() - start_time, " to run.")
@@ -683,11 +708,7 @@ def run_scrapper(my_web_scraper, error_counter2):
 
 
 if __name__ == "__main__":
-    """This is a webscraper for Facebook. The goal is to scrape comments and the gender of people making those comments
-       about a location that we type in. Default place is Maraenui"""
+    """This is a webscraper for Facebook. The goal is to scrape commentsof people making those comments
+       about a location that we type in."""
     web_scraper = WebScraper()
-    # u_name = input('What is your Facebook username?')
-    # p_word = input('What is your Facebook password?')
-    # web_scraper.set_username(u_name)
-    # web_scraper.set_password(p_word)
-    run_scrapper(web_scraper, error_counter)
+    run_scraper(web_scraper)
